@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MLP — My Language Printer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080c10;--bg3:#161b22;--bg4:#1c2128;
+  --border:#21262d;--border2:#30363d;
+  --text:#e6edf3;--text2:#8b949e;--text3:#484f58;
+  --cyan:#39d0d8;--yellow:#e3b341;--pink:#f778ba;--purple:#bc8cff;
+  --mono:'IBM Plex Mono',monospace;--main:'Noto Sans KR',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--main);min-height:100vh}
+.wrap{max-width:680px;margin:0 auto;padding:18px 16px 60px}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:3px;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.hdr-eye::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-title{font-size:22px;font-weight:900;margin-bottom:16px}
+.hdr-title span{color:var(--cyan)}
+
+.notes-upload-zone{border:2px dashed var(--border2);border-radius:12px;padding:28px 16px;text-align:center;cursor:pointer;transition:all .2s;position:relative;margin-bottom:12px}
+.notes-upload-zone:hover,.notes-upload-zone.dragover{border-color:var(--cyan);background:rgba(57,208,216,.04)}
+.notes-upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.notes-upload-icon{font-size:32px;margin-bottom:6px}
+.notes-upload-txt{font-size:13px;color:var(--text2);font-weight:700}
+.notes-upload-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px}
+.img-prev-row{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px}
+.img-prev-item{position:relative;flex:none}
+.img-prev-item img{width:74px;height:74px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
+.img-prev-del{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--pink);color:#000;border:none;font-size:11px;cursor:pointer;line-height:1;font-weight:700}
+
+.row{display:flex;gap:8px;margin-bottom:8px}
+.inp{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;outline:none}
+.inp:focus{border-color:var(--cyan)}
+select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:10px;font-size:13px;outline:none;margin-bottom:8px}
+
+.btn{width:100%;padding:13px;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;background:var(--pink);color:#000;margin-top:4px;transition:transform .15s}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.result{margin-top:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;display:none}
+.result.show{display:block}
+.result-label{font-family:var(--mono);font-size:10px;color:var(--yellow);letter-spacing:2px;margin-bottom:10px}
+.result-text{white-space:pre-line;font-size:14px;line-height:1.9;color:var(--text)}
+.ldots{display:flex;gap:5px;justify-content:center;padding:20px}
+.ldots .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);animation:dotpulse 1.2s infinite}
+.ldots .dot:nth-child(2){animation-delay:.2s}
+.ldots .dot:nth-child(3){animation-delay:.4s}
+@keyframes dotpulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.1)}}
+.ph{text-align:center;padding:24px 12px;color:var(--text3);font-size:13px;line-height:1.8}
+.ph span{color:var(--cyan);font-family:var(--mono);font-size:11px}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#3fb950;color:#000;font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 18px;border-radius:20px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr-eye">// TENPEAK · MLP</div>
+  <div class="hdr-title">My <span>Language</span> Printer</div>
+
+  <div class="notes-upload-zone" id="upload-zone">
+    <input type="file" id="file-inp" accept="image/*" multiple onchange="handleUpload(this)">
+    <div class="notes-upload-icon" id="upload-icon">📖</div>
+    <div class="notes-upload-txt" id="upload-txt">부교재 사진을 올려봐</div>
+    <div class="notes-upload-sub">여러 장 가능 · 표/도식 다 OK</div>
+  </div>
+  <div class="img-prev-row" id="img-preview"></div>
+
+  <div class="row">
+    <input class="inp" id="subject-input" placeholder="과목 (예: 한국사)">
+    <input class="inp" id="unit-input" placeholder="단원 (선택)">
+  </div>
+  <select id="style-select">
+    <option value="암기용">💥 암기용 — 핵심만 날카롭게, 내 말투</option>
+    <option value="흐름이해">🧩 흐름 이해 — 전후 관계/인과 중심</option>
+    <option value="시험직전">⚡ 시험 직전 — 초압축 키워드</option>
+  </select>
+
+  <button class="btn" id="run-btn" onclick="runMLP()">🖨️ 내 언어로 출력</button>
+
+  <div class="result" id="result">
+    <div class="result-label">// MY LANGUAGE</div>
+    <div class="result-text" id="result-text">
+      <div class="ph">아직 변환 전이야!<br><span>내 언어로 출력</span> 눌러봐 🔥</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const AI_URL = 'http://10.1.1.60:8000/v1/chat/completions';
+const AI_MODEL = 'gemma-4-26B-A4B-it-RotorQuant-MLX-8bit';
+const apiKey = 'cjddk0509';
+
+let imgs = [];
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) { t=document.createElement('div'); t.id='toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.style.opacity='0', 2200);
+}
+
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e=>{e.preventDefault();zone.classList.add('dragover');});
+zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+zone.addEventListener('drop',e=>{
+  e.preventDefault();zone.classList.remove('dragover');
+  const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));
+  if(!files.length) return;
+  const dt=new DataTransfer();
+  files.forEach(f=>dt.items.add(f));
+  document.getElementById('file-inp').files=dt.files;
+  handleUpload(document.getElementById('file-inp'));
+});
+
+function handleUpload(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      imgs.push(e.target.result);
+      loaded++;
+      if (loaded === files.length) {
+        renderPreview();
+        document.getElementById('upload-icon').textContent = '✅';
+        document.getElementById('upload-txt').textContent = `${imgs.length}장 선택됨 — 다시 누르면 추가`;
+        showToast('사진 추가됨!');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderPreview() {
+  document.getElementById('img-preview').innerHTML = imgs.map((src,i) => `
+    <div class="img-prev-item">
+      <img src="${src}">
+      <button class="img-prev-del" onclick="removeImg(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeImg(i) {
+  imgs.splice(i,1);
+  renderPreview();
+  if (!imgs.length) {
+    document.getElementById('upload-icon').textContent = '📖';
+    document.getElementById('upload-txt').textContent = '부교재 사진을 올려봐';
+  }
+}
+
+async function runMLP() {
+  if (!imgs.length) { showToast('부교재 사진을 올려줘!'); return; }
+
+  const subject = document.getElementById('subject-input').value.trim();
+  const unit = document.getElementById('unit-input').value.trim();
+  const style = document.getElementById('style-select').value;
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true; btn.textContent = '변환 중...';
+  document.getElementById('result').classList.add('show');
+  document.getElementById('result-text').innerHTML = `<div class="ldots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+
+  const styleGuide = {
+    '암기용': '핵심 개념과 흐름만 골라서, 학생 본인의 말투(이모지·드립·줄임말 OK)로 완전히 새롭게 풀어 써줘. 절대 원문 문장을 그대로 가져오지 말고, 개념을 이해한 뒤 자기 언어로 재구성해.',
+    '흐름이해': '사건/개념 사이의 인과관계와 전후 흐름을 화살표(→)로 연결해서, 왜 이게 다음 단계로 이어지는지 스토리텔링 하듯 재구성해줘. 원문 표현 대신 비유나 쉬운 말로 바꿔서 설명해.',
+    '시험직전': '키워드와 숫자/연도/핵심 명칭만 초압축해서 나열해줘. 문장 최소화, 핵심 단어 위주.'
+  };
+
+  const sys = `너는 학생이 올린 교재/부교재 사진의 내용을 분석해서, 학생 자신의 언어로 완전히 새롭게 재구성해주는 AI야.
+중요한 규칙:
+- 원문 문장을 그대로 옮기거나 단어만 살짝 바꾸는 것은 절대 금지. 개념과 구조를 이해한 뒤 처음부터 새로 써.
+- ${styleGuide[style]}
+- 표/도식/화살표 구조가 있으면 그 관계를 살려서 재구성해.
+
+출력 형식 (반드시 이 순서):
+1. 맨 위에 "📌 한 줄 요약" — 이 내용을 한 문장으로, 시험장에서 이것만 떠올려도 절반은 풀 수 있을 정도로 압축
+2. 그 아래 빈 줄 하나
+3. 본문 내용 재구성
+
+일반 텍스트로만 답해 (마크다운 헤더 ## 사용 가능, 코드블록/JSON 금지).`;
+
+  const userContent = [];
+  let textPart = '';
+  if (subject) textPart += `과목: ${subject}\n`;
+  if (unit) textPart += `단원: ${unit}\n`;
+  textPart += '위 교재 내용을 내 언어로 재구성해줘.';
+  userContent.push({ type:'text', text: textPart });
+  imgs.forEach(src => userContent.push({ type:'image_url', image_url:{ url: src } }));
+
+  try {
+    const res = await fetch(AI_URL, {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+      body: JSON.stringify({ model: AI_MODEL, messages:[{role:'system',content:sys},{role:'user',content:userContent}] })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const text = data.choices[0].message.content.trim();
+    document.getElementById('result-text').textContent = text;
+  } catch(e) {
+    document.getElementById('result-text').innerHTML = `<div class="ph">⚠ 오류: <span>${e.message}</span></div>`;
+  }
+  btn.disabled = false; btn.textContent = '🖨️ 내 언어로 출력';
+}
+</script>
+</body>
+</html>
