@@ -65,7 +65,7 @@ select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-r
   <div class="notes-upload-zone" id="upload-zone">
     <input type="file" id="file-inp" accept="image/*" multiple onchange="handleUpload(this)">
     <div class="notes-upload-icon" id="upload-icon">📖</div>
-    <div class="notes-upload-txt" id="upload-txt">부교재 사진을 올려봐</div>
+    <div class="notes-upload-txt" id="upload-txt">교재 사진을 올려봐</div>
     <div class="notes-upload-sub">여러 장 가능 · 표/도식 다 OK</div>
   </div>
   <div class="img-prev-row" id="img-preview"></div>
@@ -92,7 +92,7 @@ select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-r
 
 <script>
 const AI_URL = 'http://10.1.1.60:8000/v1/chat/completions';
-const AI_MODEL = 'gemma-4-26B-A4B-it-RotorQuant-MLX-8bit';
+const AI_MODEL = 'gemma-4-26B-A4B-it-qat-8bit';
 const apiKey = 'cjddk0509';
 
 let imgs = [];
@@ -152,12 +152,12 @@ function removeImg(i) {
   renderPreview();
   if (!imgs.length) {
     document.getElementById('upload-icon').textContent = '📖';
-    document.getElementById('upload-txt').textContent = '부교재 사진을 올려봐';
+    document.getElementById('upload-txt').textContent = '교재 사진을 올려봐';
   }
 }
 
 async function runMLP() {
-  if (!imgs.length) { showToast('부교재 사진을 올려줘!'); return; }
+  if (!imgs.length) { showToast('교재 사진을 올려줘!'); return; }
 
   const subject = document.getElementById('subject-input').value.trim();
   const unit = document.getElementById('unit-input').value.trim();
@@ -174,7 +174,7 @@ async function runMLP() {
     '시험직전': '키워드와 숫자/연도/핵심 명칭만 초압축해서 나열해줘. 문장 최소화, 핵심 단어 위주.'
   };
 
-  const sys = `너는 학생이 올린 교재/부교재 사진의 내용을 분석해서, 학생 자신의 언어로 완전히 새롭게 재구성해주는 AI야.
+  const sys = `너는 학생이 올린 교재/교재 사진의 내용을 분석해서, 학생 자신의 언어로 완전히 새롭게 재구성해주는 AI야.
 중요한 규칙:
 - 원문 문장을 그대로 옮기거나 단어만 살짝 바꾸는 것은 절대 금지. 개념과 구조를 이해한 뒤 처음부터 새로 써.
 - ${styleGuide[style]}
