@@ -87,6 +87,10 @@ select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-r
     <div class="result-text" id="result-text">
       <div class="ph">아직 변환 전이야!<br><span>내 언어로 출력</span> 눌러봐 🔥</div>
     </div>
+    <div id="result-actions" style="display:none;margin-top:12px;display:none;gap:8px">
+      <button onclick="printMLP()" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--cyan);color:#000;font-weight:700;font-size:13px;cursor:pointer">🖨️ 인쇄 / PDF 저장</button>
+      <button onclick="copyMLP()" id="copy-btn" style="flex:1;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg3);color:var(--text);font-weight:700;font-size:13px;cursor:pointer">📋 복사</button>
+    </div>
   </div>
 </div>
 
@@ -211,10 +215,52 @@ async function runMLP() {
     if (data.error) throw new Error(data.error.message);
     const text = data.choices[0].message.content.trim();
     document.getElementById('result-text').textContent = text;
+    const actions = document.getElementById('result-actions');
+    actions.style.display = 'flex';
   } catch(e) {
     document.getElementById('result-text').innerHTML = `<div class="ph">⚠ 오류: <span>${e.message}</span></div>`;
   }
   btn.disabled = false; btn.textContent = '🖨️ 내 언어로 출력';
+}
+
+function printMLP() {
+  const subject = document.getElementById('subject-input').value.trim() || 'MLP 정리노트';
+  const unit = document.getElementById('unit-input').value.trim();
+  const style = document.getElementById('style-select').value;
+  const content = document.getElementById('result-text').innerText;
+  if (!content || content.includes('아직 변환 전이야')) { showToast('먼저 출력해봐!'); return; }
+
+  const title = subject + (unit ? ` — ${unit}` : '') + ` (${style})`;
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+
+  const printWin = window.open('', '_blank');
+  printWin.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${title}</title>
+<style>
+  body{font-family:'Noto Sans KR',sans-serif;padding:32px 40px;color:#1a1a1a;line-height:2;font-size:14px;max-width:800px;margin:0 auto}
+  .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1a1a1a;padding-bottom:8px;margin-bottom:20px}
+  .header h1{font-size:18px;margin:0}
+  .header span{font-size:11px;color:#666;font-family:monospace}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#666;margin-bottom:12px;font-family:monospace}
+  pre{white-space:pre-wrap;word-break:break-word;font-family:'Noto Sans KR',sans-serif;font-size:14px;line-height:2;margin:0}
+  @media print{body{padding:20px 24px}}
+</style></head><body>
+<div class="header"><h1>${title}</h1><span>${dateStr}</span></div>
+<div class="badge">My Language Printer · ${style}</div>
+<pre>${content}</pre>
+</body></html>`);
+  printWin.document.close();
+  setTimeout(() => printWin.print(), 400);
+}
+
+function copyMLP() {
+  const content = document.getElementById('result-text').innerText;
+  navigator.clipboard.writeText(content).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ 복사됨!';
+    btn.style.color = 'var(--cyan)';
+    setTimeout(() => { btn.textContent = '📋 복사'; btn.style.color = ''; }, 2000);
+  });
 }
 </script>
 </body>
