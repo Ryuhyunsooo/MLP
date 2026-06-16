@@ -45,7 +45,16 @@ select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-r
 .result{margin-top:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;display:none}
 .result.show{display:block}
 .result-label{font-family:var(--mono);font-size:10px;color:var(--yellow);letter-spacing:2px;margin-bottom:10px}
-.result-text{white-space:pre-line;font-size:14px;line-height:1.9;color:var(--text)}
+.result-text{white-space:normal;font-size:14px;line-height:1.9;color:var(--text)}
+.result-text .summary{background:rgba(57,208,216,.08);border-left:3px solid var(--cyan);padding:10px 14px;border-radius:6px;margin-bottom:14px;font-weight:700;color:var(--cyan)}
+.result-text h3{font-size:15px;font-weight:900;color:var(--yellow);margin:16px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px}
+.result-text p{margin-bottom:8px;color:var(--text)}
+.result-text ul{margin:6px 0 10px 18px}
+.result-text li{margin-bottom:4px}
+.result-text strong{color:var(--pink)}
+.result-text table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+.result-text th{background:var(--bg4);color:var(--cyan);padding:7px 10px;border:1px solid var(--border2);text-align:left;font-family:var(--mono);font-size:11px}
+.result-text td{padding:7px 10px;border:1px solid var(--border);color:var(--text)}
 .ldots{display:flex;gap:5px;justify-content:center;padding:20px}
 .ldots .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);animation:dotpulse 1.2s infinite}
 .ldots .dot:nth-child(2){animation-delay:.2s}
@@ -191,12 +200,15 @@ async function runMLP() {
 - ${styleGuide[style]}
 - 표/도식/화살표 구조가 있으면 그 관계를 살려서 재구성해.
 
-출력 형식 (반드시 이 순서):
-1. 맨 위에 "📌 한 줄 요약" — 사진 속 내용 전체를 한 문장으로, 시험장에서 이것만 떠올려도 절반은 풀 수 있을 정도로 압축
-2. 그 아래 빈 줄 하나
-3. 본문 내용 재구성 — 사진에 나온 항목/표/소제목 순서를 그대로 따라가기
-
-일반 텍스트로만 답해 (마크다운 헤더 ## 사용 가능, 코드블록/JSON 금지).`;
+**출력 형식 (반드시 HTML로만 출력, 다른 텍스트/마크다운/코드블록 금지):**
+- 맨 위에 한 줄 요약: <div class="summary">📌 한 줄 요약: [내용]</div>
+- 소제목: <h3>[제목]</h3>
+- 본문 문단: <p>[내용]</p>
+- 목록: <ul><li>[항목]</li></ul>
+- 비교표: <table><tr><th>항목</th><th>내용</th><th>의미</th></tr><tr><td>...</td>...</tr></table>
+- 강조: <strong>[중요 키워드]</strong>
+- script, style 태그는 절대 금지.
+- HTML 태그 외 다른 텍스트(마크다운, 코드블록, 설명)는 출력하지 마.`;
 
   const userContent = [];
   let textPart = '';
@@ -213,10 +225,11 @@ async function runMLP() {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    const text = data.choices[0].message.content.trim();
-    document.getElementById('result-text').textContent = text;
-    const actions = document.getElementById('result-actions');
-    actions.style.display = 'flex';
+    let html = data.choices[0].message.content.trim();
+    // 혹시 마크다운 코드블록으로 감싸져 있으면 제거
+    html = html.replace(/^```html?\n?/i,'').replace(/```$/,'').trim();
+    document.getElementById('result-text').innerHTML = html;
+    document.getElementById('result-actions').style.display = 'flex';
   } catch(e) {
     document.getElementById('result-text').innerHTML = `<div class="ph">⚠ 오류: <span>${e.message}</span></div>`;
   }
@@ -227,30 +240,41 @@ function printMLP() {
   const subject = document.getElementById('subject-input').value.trim() || 'MLP 정리노트';
   const unit = document.getElementById('unit-input').value.trim();
   const style = document.getElementById('style-select').value;
-  const content = document.getElementById('result-text').innerText;
-  if (!content || content.includes('아직 변환 전이야')) { showToast('먼저 출력해봐!'); return; }
+  const el = document.getElementById('result-text');
+  const content = el.innerHTML;
+  if (!content || el.innerText.includes('아직 변환 전이야')) { showToast('먼저 출력해봐!'); return; }
 
-  const title = subject + (unit ? ` — ${unit}` : '') + ` (${style})`;
+  const title = subject + (unit ? ` — ${unit}` : '');
   const now = new Date();
   const dateStr = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
 
   const printWin = window.open('', '_blank');
   printWin.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${title}</title>
 <style>
-  body{font-family:'Noto Sans KR',sans-serif;padding:32px 40px;color:#1a1a1a;line-height:2;font-size:14px;max-width:800px;margin:0 auto}
-  .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1a1a1a;padding-bottom:8px;margin-bottom:20px}
-  .header h1{font-size:18px;margin:0}
-  .header span{font-size:11px;color:#666;font-family:monospace}
-  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#666;margin-bottom:12px;font-family:monospace}
-  pre{white-space:pre-wrap;word-break:break-word;font-family:'Noto Sans KR',sans-serif;font-size:14px;line-height:2;margin:0}
-  @media print{body{padding:20px 24px}}
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+  body{font-family:'Noto Sans KR',sans-serif;padding:32px 40px;color:#1a1a1a;line-height:1.9;font-size:13px;max-width:780px;margin:0 auto}
+  .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1a1a1a;padding-bottom:8px;margin-bottom:6px}
+  .header h1{font-size:17px;margin:0;font-weight:900}
+  .header span{font-size:10px;color:#888;font-family:monospace}
+  .badge{font-size:10px;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#666;margin-bottom:16px;display:inline-block;font-family:monospace}
+  .summary{background:#f0f8ff;border-left:3px solid #2E75B6;padding:8px 12px;border-radius:4px;margin-bottom:14px;font-weight:700;color:#1a4a7a;font-size:13px}
+  h3{font-size:14px;font-weight:900;margin:14px 0 5px;border-bottom:1px solid #ddd;padding-bottom:3px;color:#1a1a1a}
+  p{margin-bottom:7px}
+  ul{margin:5px 0 8px 18px}
+  li{margin-bottom:3px}
+  strong{color:#c0392b}
+  table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px}
+  th{background:#2E75B6;color:#fff;padding:6px 8px;border:1px solid #2E75B6;text-align:left;font-size:11px}
+  td{padding:6px 8px;border:1px solid #ccc}
+  tr:nth-child(even) td{background:#f8f8f8}
+  @media print{body{padding:16px 20px}}
 </style></head><body>
 <div class="header"><h1>${title}</h1><span>${dateStr}</span></div>
 <div class="badge">My Language Printer · ${style}</div>
-<pre>${content}</pre>
+${content}
 </body></html>`);
   printWin.document.close();
-  setTimeout(() => printWin.print(), 400);
+  setTimeout(() => printWin.print(), 600);
 }
 
 function copyMLP() {
